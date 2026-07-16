@@ -403,7 +403,62 @@ already active.
 
 Authentication · Workspace · Account · RBAC · PBAC · ABAC ·
 Notifications · Audit · Settings · Organisation Management · Project
-Management
+Management · Budget Tracking
+
+**Budget Tracking** is a base-platform capability (Phase 1.5), **not** a
+separately-assignable §8.2 module. It lets an Industry plan and track
+**its own internal operating budget** for running Projects — distinct
+from ATOM's B2B billing of the Industry (§9). See §8.5 for scope.
+
+### 8.5 Budget Tracking (base-platform capability — Phase 1.5)
+
+A lightweight, single-currency, **allocation-only** tracker that follows
+the primary hierarchy (§3.1) one level at a time:
+`Industry overall budget → Project allocation → Functional Area
+allocation`. "FA" here means **Functional Area** (§15), not "Field
+Agent."
+
+**v1 scope — allocation only (no spend logging):**
+
+1. **Industry Overall Budget** — Industry enters its `total_budget`
+   (single Industry-level currency, optional label). Exactly one overall
+   budget record per Industry.
+2. **Overall Budget Dashboard (Industry)** — Total · Allocated
+   (Σ Project allocations) · Unallocated. Per-Project row: allocated,
+   % of total. Covers the Default Project and all Event Projects (§7.1).
+3. **Project Budget Allocation** — Industry allocates a slice of the
+   overall budget to an individual Project.
+4. **Project → Functional Area Budget Allocation** — Industry allocates
+   a Project's budget down to its configured Functional Areas. v1 stops
+   at FA (no Sub-FA / Task Board / Task budgets).
+5. **Project Budget Dashboard** — Project allocation · Allocated to FAs
+   (Σ) · Unallocated. Per-FA row: allocated, %.
+
+**Business rules:**
+
+- **Over-allocation is a hard block**, at both levels: Σ Project
+  allocations ≤ Industry total, and Σ FA allocations ≤ that Project's
+  allocation. This is the only guardrail an allocation-only v1 needs.
+- Reducing the Industry total below the amount already allocated to
+  Projects is a hard block.
+- Reducing a Project's allocation below the amount already allocated to
+  its Functional Areas is also a hard block (same rule, one level down).
+- Allocation is always a **parent-sets-child** action: the Industry sets
+  Project and FA allocations; the FA-owning Institution does not set its
+  own allocation.
+- **Single currency**, set at the Industry level — no multi-currency.
+
+**Spend tracking is out of scope for v1** — v1 records allocation only.
+Logging actual spend against Functional Areas (with roll-up, Spent /
+Remaining columns, and over-budget flagging) is a **v2** capability; its
+open decisions (manual entry vs. auto-derive from the Expenses/Payments
+modules per §8.2/§8.3; who logs spend; over-spend = allow + flag) are
+deferred, not decided here.
+
+Also out of scope for v1: approval/sign-off workflows, multi-currency,
+invoicing/reconciliation, purchase orders, receipts/attachments,
+forecasting/variance analytics, Sub-FA/Task-level budgets, and threshold
+push-notifications.
 
 ### 8.2 Project Modules
 
@@ -459,6 +514,13 @@ Industry is invoiced based on which modules it has selected/enabled
 for its account (§8). Individuals and Institutions are not billed
 under the current model.
 
+**Do not confuse ATOM billing with the Industry's own budget.** The
+Budget Tracking capability (§8.5) is the Industry planning and tracking
+**its own operating budget** for running Projects; it is a base-platform
+feature, available to every Industry, **revenue-neutral** (not a billing
+SKU) and entirely separate from what the Industry pays ATOM for module
+access.
+
 **Later phase: Individual monetization.** A Pro Membership tier is
 planned for Individuals, gated behind a purchase, that unlocks
 cross-Project value an Individual can't get otherwise — the flagship
@@ -493,6 +555,15 @@ Implications to keep in mind for any future design:
 - **Audit logs** capture actions across the platform.
 - Never flatten permissions — do not propose a shortcut that collapses
   RBAC/PBAC/ABAC into a simpler single check.
+- **Budget Tracking (§8.5) visibility** follows this rule too: new RBAC
+  permissions (e.g. `Budget: View` / `Budget: Manage`) grant the
+  *capability* to see/manage budgets and may be assigned to Institution
+  or Individual roles — but Project isolation and Functional Area
+  isolation still scope *which* budgets a viewer sees (an Institution
+  sees its own assigned FA's allocation, not sibling FAs'). RBAC alone
+  must never be the whole check. Do not grant budget visibility to
+  participant User Types (e.g. Athletes) via a Project Role by default
+  (§7.7.2).
 
 ---
 
@@ -551,6 +622,12 @@ short-circuited by a feature design:
   additive later-phase layer, not a replacement (§9).
 - In later phases, participants see module-generated Services
   (Training Programs, Tournaments, etc.), not the raw Project (§7.8).
+- Budget Tracking (§8.5) is a base-platform capability (Phase 1.5), not
+  a separately-assignable module; it tracks the Industry's own operating
+  budget and is revenue-neutral (§9). v1 is **allocation-only** (no
+  spend); over-allocation is a hard block; allocation is always
+  parent-sets-child (Industry → Project → Functional Area); single
+  currency. Spend tracking is v2.
 
 ---
 
@@ -576,12 +653,21 @@ Core workspaces · Organisation Management · Project Management ·
 Functional Areas · User Types · Dynamic Forms · Invitations · Join
 Requests · Command · Tasks · Notifications · Audit · Module assignment
 
+### Phase 1.5
+
+Budget Tracking v1 (§8.5) — base-platform, allocation-only budget
+tracker: Industry overall budget → Project allocation → Functional Area
+allocation, with allocation dashboards at the Industry and Project
+levels. No spend logging in this phase.
+
 ### Phase 2
 
 Advanced workflows · Analytics · Automation · Performance dashboards ·
 AI assistance · Advanced assessments · Institution Roles scoped within
 assigned Functional Areas (§7.7.3) · Participant-facing shift from
-Project view to module-generated Service view (§7.8)
+Project view to module-generated Service view (§7.8) · Budget Tracking
+v2 — spend logging against Functional Areas with roll-up and
+Spent/Remaining/over-budget dashboards (§8.5)
 
 ### Later Phase (beyond Phase 2, not yet sequenced)
 
@@ -612,6 +698,7 @@ cross-Project performance history for Individuals (§9)
 | **TMS** | Tournament Management System — an independently-developed system that integrates into ATOM as the Tournament module; generates Tournaments as its participant-facing Service (§7.8). |
 | **Service (module-surfaced)** | A participant-facing deliverable generated by a module assigned to a Project (e.g. a Training Program from AMS, a Tournament from TMS). In later phases this — not the raw Project — is what Individuals/Institutions see (§7.8). |
 | **Pro Membership** | A planned paid tier for Individuals (later phase) unlocking cross-Project value such as AMS-tracked performance history — distinct from Industry's module-based billing (§9). |
+| **Budget Tracking** | A base-platform capability (Phase 1.5, §8.5) for an Industry to plan/track its own operating budget by allocating from an overall budget down to Projects and then to Functional Areas. v1 is allocation-only (no spend); revenue-neutral, distinct from ATOM's billing of the Industry (§9). |
 
 ---
 
