@@ -226,3 +226,61 @@ user decision 2026-07-14.
 **Status:** Proposed (v2)
 
 **Notes:** Keep separate from the v1 allocation tracker so v1 scope stays clean.
+
+---
+
+### [2026-07-17] Project Progress Tracking v1 — backend-computed Task completion %
+
+**Problem:** A Project has no at-a-glance completion signal. The Industry (and
+participants) can't tell how far along a Project is without inspecting Task Boards.
+
+**Proposal:** A backend-computed, read-only percentage per Project — never manually
+set:
+`Progress % = (Completed Tasks / Total Tasks) × 100`, counting **Task Board Tasks**
+(§3.1; some UI copy says "Tickets" — Task is canonical per §13). Folds into the base
+platform (like Budget Tracking), not a §8.2 module.
+
+**Rules (finalized 2026-07-17):**
+- **Authoritative Task status set:** To Do · In Progress · Reopen · Completed ·
+  Cancelled. Progress is computed from a Task's *current* status.
+  - Completed Tasks = count in status **Completed**.
+  - Total Tasks = all Tasks **except Cancelled** (= To Do + In Progress + Reopen +
+    Completed).
+  - **Reopen counts toward Total, not Completed** — an open bucket; moving
+    Completed → Reopen drops the %. Falls out of "count by current status."
+- New Project = **0%** (zero Tasks; `0/0` defined as 0%, never NaN/100%).
+- **Rounded to nearest integer, no decimals.**
+- Only Tasks counted (no sub-task entity in the hierarchy).
+- Computed **flat** across all of a Project's Tasks (all FAs), not rolled up from FA.
+
+**Surfaces (4):** (1) Project card on the Industry Projects list; (2) Project Overview
+page; (3) Task Board page; (4) Industry Overview (Home) "ongoing projects" section —
+one tracker per project.
+
+**Supersedes:** the retired Phase 1 §7.5 FA-based model (`Completed FAs / Total FAs`).
+
+**Access control (decision):** **No dedicated RBAC permission.** Unlike Budget (money +
+manageable → explicit `Budget: View`/`Manage`, §8.5/§10), Progress is a read-only
+derived value shown inside pages the viewer already reaches. Visibility piggybacks on
+page/role access: Projects list + Industry Overview are Industry-only surfaces; on Task
+Board / Project Overview it renders for Industry and Institution but **not on the
+Individual participant surface** (UI-surface rule, not a permission). §10 Project + FA
+isolation still implicitly scope which project's Tasks feed the number.
+
+**Considered and deferred (NOT in v1.5 scope):** FA-level progress rollup (Completed
+Tasks in FA / Total in FA). Would restore symmetry with FA-level Budget dashboards and
+fit the FA-scoped Task Board page, but explicitly deferred per user 2026-07-17. Revisit
+alongside Institution FA-scoped Roles in Phase 2 (§7.7.3).
+
+**Related context sections:** §3.1, §7.1, §7.4, §7.5 (rewritten), §7.8, §10, §12,
+§14 (Phase 1.5), §15
+
+**Feasibility:** Feasible now. No AMS/TMS dependency. Task status model (To Do / In
+Progress / Reopen / Completed / Cancelled) already exists in this ATOM instance — the
+earlier "needs a Task completion status" prerequisite is resolved.
+
+**Status:** Committed to Phase 1.5 (per user decisions 2026-07-14 / 2026-07-17)
+
+**Notes:** Overturns the documented §7.5 Phase 1 FA-based progress decision — flagged
+to and requested by the user. Persisted to atom-context.md §7.5, §12, §14, §15 on
+2026-07-17.
