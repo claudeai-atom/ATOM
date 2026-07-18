@@ -288,17 +288,79 @@ Functional Areas, which contain Task Boards, which contain Tasks
 own execution inside their assigned FAs** — an Institution's authority
 is scoped to the FA(s) it has been assigned, not the whole Project.
 
-### 7.5 Progress Tracking (current decision — Phase 1)
+### 7.5 Progress Tracking (current decision — Phase 1.5)
 
-Project progress is **not** derived from configuration completeness.
-Instead:
+Project progress is a **backend-computed, read-only percentage** — it is
+**never manually set** — and it is **not** derived from configuration
+completeness. The model is Task-completion-based:
 
 ```
-Progress = Completed Functional Areas / Total Functional Areas
+Progress % = (Completed Tasks / Total Tasks) × 100
 ```
 
-This is the Phase 1 implementation; more granular progress models are
-out of scope until Phase 1 is validated.
+The unit counted is the **Task** — the leaf work item created and managed
+on a Task Board (§3.1). (Some UI/spec copy calls these "Tickets"; Task is
+the canonical term, §13.)
+
+- **Authoritative Task status set.** A Task is always in exactly one of
+  five statuses: **To Do · In Progress · Reopen · Completed · Cancelled.**
+  Progress is computed purely from a Task's *current* status:
+  - **Completed Tasks** = count of Tasks in status **Completed**.
+  - **Total Tasks** = all Tasks **excluding** status **Cancelled** (i.e.
+    To Do + In Progress + Reopen + Completed). Cancelled work is neither
+    numerator nor denominator, so cancelling a Task cannot inflate
+    progress and a fully-cancelled Board does not strand progress below
+    100%.
+  - **Reopen** counts toward Total but **not** toward Completed — it is
+    an open bucket. This falls out naturally from "count by current
+    status": moving a Task from Completed → Reopen removes it from the
+    numerator while it stays in the denominator, so progress drops. No
+    special-casing is needed.
+- **Rounding.** The percentage is **rounded to the nearest integer, no
+  decimal places** (e.g. `47%`).
+- **Initial state.** A newly-created Project has zero Tasks, so
+  Progress = **0%**. `0 / 0` is defined as **0%** — never NaN/undefined,
+  and never 100%.
+- **Live recompute.** Adding Tasks lowers the percentage until they are
+  Completed (expected, not a bug); reopening a Completed Task lowers it;
+  cancelling or deleting Tasks recomputes against the remaining
+  non-Cancelled set. Only Tasks are counted — the hierarchy has no
+  sub-task entity below a Task.
+- **Flat computation.** Progress is computed across all of a Project's
+  Tasks (spanning every FA / Sub FA / Task Board), not rolled up from
+  FA-level completion.
+
+**Surfaces (Phase 1.5):** (1) each Project card on the Industry's
+Projects list; (2) the Project Overview page; (3) the Task Board page;
+(4) the Industry Overview (Home) "ongoing projects" section — one
+progress tracker per project.
+
+**This supersedes the Phase 1 FA-based model** (`Completed Functional
+Areas / Total Functional Areas`), which is retired. **FA-level progress
+rollup is explicitly out of v1.5 scope** (considered and deferred).
+
+**Access control (decision).** Project Progress does **not** get its own
+RBAC permission in v1.5. Unlike Budget Tracking — which is money and is
+*manageable*, and therefore earned explicit `Budget: View` / `Budget:
+Manage` permissions (§8.5, §10) — Progress is a **read-only derived
+display value** that always renders *inside* a page the viewer already
+has route access to. Its visibility therefore **piggybacks on existing
+page/role access**, not a new permission:
+  - The Projects list card and the Industry Overview "ongoing projects"
+    section are **Industry-workspace surfaces**; only the Industry sees
+    them. Implicit — no permission needed.
+  - On the **Task Board** and **Project Overview**, whoever can already
+    open the page sees the number. Per the v1.5 decision, progress is
+    rendered for the **Industry** and the **Institution** (which owns FA
+    execution and works on the Task Board, §7.4), and is **not rendered
+    on the Individual participant surface**. This is a UI-surface rule,
+    not an RBAC permission — an Individual is simply not shown the
+    progress element, rather than being blocked by a permission check.
+  - §10 Project isolation and Functional Area isolation still implicitly
+    scope *which* project's Tasks feed a viewer's number. Adding a
+    dedicated `Progress: View` permission would add matrix noise for
+    near-zero security value; revisit only if per-role progress toggling
+    is wanted when Institution FA-scoped Roles land in Phase 2 (§7.7.3).
 
 ### 7.6 User Types & Dynamic Forms
 
@@ -601,8 +663,15 @@ short-circuited by a feature design:
 - Modules are dependency-driven and assigned by Master Admin.
 - Exactly one Default Project per Industry; unlimited Event Projects.
 - Command registration is supported and cannot be rejected.
-- Project progress is based on completed Functional Areas (§7.5), not
-  configuration completeness.
+- Project progress is a backend-computed, read-only percentage —
+  `(Completed Tasks / Total Tasks) × 100`, counting Task Board Tasks
+  (§7.5); never manually set, not based on configuration completeness.
+  Completed = status Completed; Total = all Tasks except status Cancelled
+  (Reopen counts toward Total, not Completed). `0/0` = 0% (new project);
+  rounded to the nearest integer. Progress has no dedicated RBAC
+  permission — it piggybacks on page/role access and is not shown on the
+  Individual participant surface (§7.5, §10). Replaces the retired
+  Phase 1 FA-based progress model (§7.5).
 - Individual and Institution workspaces are created through in-app
   self-service forms with no approval gate; the Industry workspace is
   never self-service — it always requires a manual Master Admin
@@ -660,6 +729,16 @@ tracker: Industry overall budget → Project allocation → Functional Area
 allocation, with allocation dashboards at the Industry and Project
 levels. No spend logging in this phase.
 
+Project Progress Tracking (§7.5) — backend-computed, read-only
+`(Completed Tasks / Total Tasks) × 100` per Project, counting Task Board
+Tasks (Completed = status Completed; Total = all Tasks except Cancelled;
+Reopen counts toward Total only). New Project = 0%; rounded to nearest
+integer. Surfaces on the Projects list card, Project Overview, Task
+Board, and the Industry Overview "ongoing projects" section. No dedicated
+RBAC permission (piggybacks on page access; not shown to Individual
+participants). Replaces the retired Phase 1 FA-based progress model.
+FA-level rollup is out of scope for v1.5.
+
 ### Phase 2
 
 Advanced workflows · Analytics · Automation · Performance dashboards ·
@@ -699,6 +778,7 @@ cross-Project performance history for Individuals (§9)
 | **Service (module-surfaced)** | A participant-facing deliverable generated by a module assigned to a Project (e.g. a Training Program from AMS, a Tournament from TMS). In later phases this — not the raw Project — is what Individuals/Institutions see (§7.8). |
 | **Pro Membership** | A planned paid tier for Individuals (later phase) unlocking cross-Project value such as AMS-tracked performance history — distinct from Industry's module-based billing (§9). |
 | **Budget Tracking** | A base-platform capability (Phase 1.5, §8.5) for an Industry to plan/track its own operating budget by allocating from an overall budget down to Projects and then to Functional Areas. v1 is allocation-only (no spend); revenue-neutral, distinct from ATOM's billing of the Industry (§9). |
+| **Project Progress** | A backend-computed, read-only percentage per Project, `(Completed Tasks / Total Tasks) × 100`, counting Task Board Tasks (Phase 1.5, §7.5). Completed = status Completed; Total = all Tasks except status Cancelled (Reopen counts toward Total, not Completed). New Project = 0%; rounded to nearest integer; never manually set. Some UI copy calls Tasks "Tickets" — Task is canonical (§13). Replaces the retired Phase 1 FA-based progress model. |
 
 ---
 
